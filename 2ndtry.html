@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noten und Text Eingabe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 600px;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        label {
+            margin-top: 10px;
+        }
+
+        textarea, button {
+            margin-top: 5px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #output {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #output svg {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vexflow/1.2.93/vexflow-debug.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Noten und Text Eingabe</h1>
+        <form id="musicForm">
+            <label for="notes">Noten (Format: Note/Oktave/Dauer):</label>
+            <textarea id="notes" name="notes" rows="5" required>C4/8, D4/8, E4/8, F4/8, G4/q, A4/q, B4/8, C5/8, D5/8, E5/8, F5/q, G5/q</textarea>
+
+            <button type="button" onclick="drawNotes()">Noten anzeigen</button>
+        </form>
+        <div id="output"></div>
+    </div>
+    <script>
+        function drawNotes() {
+            const notesInput = document.getElementById('notes').value.split(',').map(note => note.trim());
+
+            const VF = Vex.Flow;
+            const div = document.createElement('div');
+            document.getElementById('output').innerHTML = '';
+            document.getElementById('output').appendChild(div);
+            const renderer = new VF.Renderer(div, VF.Renderer.Backends.SVG);
+            renderer.resize(500, 200);
+            const context = renderer.getContext();
+            context.setFont("Arial", 10, "").setBackgroundFillStyle("#fff");
+
+            const stave = new VF.Stave(10, 40, 480);
+            stave.addClef("treble").setContext(context).draw();
+
+            const vexNotes = notesInput.map(note => {
+                const [key, duration] = note.split('/');
+                return new VF.StaveNote({
+                    clef: "treble",
+                    keys: [key],
+                    duration: duration
+                });
+            });
+
+            const beams = VF.Beam.generateBeams(vexNotes.filter(note => note.getDuration() === '8'));
+
+            const voice = new VF.Voice({ num_beats: 12, beat_value: 4 });
+            voice.addTickables(vexNotes);
+
+            new VF.Formatter().joinVoices([voice]).format([voice], 400);
+            voice.draw(context, stave);
+            beams.forEach(beam => beam.setContext(context).draw());
+        }
+    </script>
+</body>
+</html>

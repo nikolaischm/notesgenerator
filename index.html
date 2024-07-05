@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noten und Text Eingabe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 600px;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        label {
+            margin-top: 10px;
+        }
+
+        textarea, button {
+            margin-top: 5px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #output {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #output svg {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vexflow/1.2.88/vexflow-debug.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Noten und Text Eingabe</h1>
+        <form id="musicForm">
+            <label for="notes">Noten (Format: Note/Oktave/Dauer):</label>
+            <textarea id="notes" name="notes" rows="5" required>C4/q, D4/q, E4/q, F4/q, G4/h</textarea>
+
+            <label for="lyrics">Text:</label>
+            <textarea id="lyrics" name="lyrics" rows="5" required>Das ist ein einfaches Musikstück.</textarea>
+
+            <button type="button" onclick="generatePDF()">PDF herunterladen</button>
+        </form>
+        <div id="output"></div>
+    </div>
+    <script>
+        function generatePDF() {
+            const { jsPDF } = window.jspdf;
+
+            const notesInput = document.getElementById('notes').value.split(',').map(note => note.trim());
+            const lyrics = document.getElementById('lyrics').value;
+
+            const doc = new jsPDF();
+            doc.setFontSize(18);
+            doc.text("Notenblatt", 10, 10);
+
+            doc.setFontSize(12);
+            doc.text("Text:", 10, 20);
+            doc.text(lyrics, 10, 30);
+
+            const VF = Vex.Flow;
+            const div = document.createElement('div');
+            document.getElementById('output').innerHTML = '';
+            document.getElementById('output').appendChild(div);
+            const renderer = new VF.Renderer(div, VF.Renderer.Backends.SVG);
+            renderer.resize(500, 200);
+            const context = renderer.getContext();
+            context.setFont("Arial", 10, "").setBackgroundFillStyle("#fff");
+
+            const stave = new VF.Stave(10, 40, 400);
+            stave.addClef("treble").setContext(context).draw();
+
+            const vexNotes = notesInput.map(note => {
+                const [keys, duration] = note.split('/');
+                return new VF.StaveNote({
+                    clef: "treble",
+                    keys: [keys],
+                    duration: duration
+                });
+            });
+
+            const voice = new VF.Voice({ num_beats: 4, beat_value: 4 });
+            voice.addTickables(vexNotes);
+
+            const formatter = new VF.Formatter().joinVoices([voice]).format([voice], 300);
+            voice.draw(context, stave);
+
+            const svg = div.querySelector('svg');
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+            img.onload = function() {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                const imgData = canvas.toDataURL('image/png');
+                doc.addImage(imgData, 'PNG', 10, 50, 180, 90);
+                doc.save('notenblatt.pdf');
+            };
+        }
+    </script>
+</body>
+</html>
